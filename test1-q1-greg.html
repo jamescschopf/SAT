@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SAT Prep – Greg – Test 1 Q1</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: "Segoe UI", sans-serif; background: #f0f4f8; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 16px; }
+.header { text-align: center; margin-bottom: 16px; }
+.header h1 { font-size: 1.2em; color: #1a3a5c; }
+.header h2 { font-size: 0.9em; color: #4a6fa5; font-weight: normal; margin-top: 4px; }
+.progress { font-size: 0.85em; color: #555; margin-bottom: 12px; }
+.game-area { width: 100%; max-width: 500px; }
+.columns { display: flex; gap: 12px; }
+.column { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.word-card { background: white; border: 2px solid #c0cfe0; border-radius: 10px; padding: 10px 8px; text-align: center; font-size: 0.9em; cursor: grab; user-select: none; min-height: 48px; display: flex; align-items: center; justify-content: center; }
+.word-card.dragging { opacity: 0.5; border-color: #4a6fa5; }
+.word-card.correct { background: #d4edda; border-color: #28a745; color: #155724; cursor: default; }
+.word-card.incorrect { background: #f8d7da; border-color: #dc3545; }
+.drop-zone { background: #eaf0fb; border: 2px dashed #a0b8d8; border-radius: 10px; padding: 10px 8px; text-align: center; font-size: 0.9em; min-height: 48px; display: flex; align-items: center; justify-content: center; color: #555; }
+.drop-zone.over { background: #d0e4ff; border-color: #4a6fa5; }
+.drop-zone.filled { background: white; border: 2px solid #c0cfe0; color: #333; }
+.drop-zone.correct { background: #d4edda; border-color: #28a745; color: #155724; }
+.drop-zone.incorrect { background: #f8d7da; border-color: #dc3545; }
+.btn { margin-top: 16px; padding: 12px 32px; font-size: 1em; background: #4a6fa5; color: white; border: none; border-radius: 8px; cursor: pointer; width: 100%; max-width: 500px; }
+.btn:disabled { background: #aaa; cursor: not-allowed; }
+.btn:hover:not(:disabled) { background: #3a5f95; }
+.passage-box { background: white; border: 2px solid #c0cfe0; border-radius: 12px; padding: 20px; margin-bottom: 16px; line-height: 1.7; font-size: 0.95em; max-width: 500px; width: 100%; white-space: pre-wrap; }
+.mcq-box { background: white; border: 2px solid #c0cfe0; border-radius: 12px; padding: 20px; max-width: 500px; width: 100%; }
+.mcq-question { font-weight: 600; margin-bottom: 16px; line-height: 1.5; }
+.mcq-option { padding: 12px 16px; border: 2px solid #c0cfe0; border-radius: 8px; margin-bottom: 10px; cursor: pointer; line-height: 1.4; }
+.mcq-option:hover { background: #eaf0fb; border-color: #4a6fa5; }
+.mcq-option.correct { background: #d4edda; border-color: #28a745; color: #155724; cursor: default; }
+.mcq-option.incorrect { background: #f8d7da; border-color: #dc3545; cursor: default; }
+.overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; }
+.overlay.show { display: flex; }
+.modal { background: white; border-radius: 16px; padding: 32px 24px; text-align: center; max-width: 320px; width: 90%; }
+.modal h2 { font-size: 1.4em; margin-bottom: 12px; }
+.modal p { color: #555; margin-bottom: 20px; font-size: 0.95em; }
+.modal .btn { margin-top: 0; }
+.name-form input { width: 100%; padding: 10px; border: 2px solid #c0cfe0; border-radius: 8px; font-size: 0.95em; margin-bottom: 12px; }
+.phase-label { font-size: 0.8em; color: #4a6fa5; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+<div class="header"><h1>SAT Prep – Greg</h1><h2>Test 1 – Question 1 of 50</h2></div>
+<div class="overlay show" id="name-overlay"><div class="modal name-form"><h2>Welcome!</h2><p>Enter your name to begin.</p><input type="text" id="name-input" placeholder="Greg" /><button class="btn" onclick="startGame()">Start</button></div></div>
+<div class="overlay" id="penalty-overlay"><div class="modal"><h2>Not Quite!</h2><p>Going back one round. Try again!</p><button class="btn" onclick="dismissPenalty()">OK</button></div></div>
+<div class="overlay" id="round-overlay"><div class="modal"><h2>Round Complete!</h2><p id="round-msg"></p><button class="btn" onclick="nextRound()">Continue</button></div></div>
+<div class="overlay" id="vocab-done-overlay"><div class="modal"><h2>Vocab Complete!</h2><p>Great work! Now read the passage and answer the question.</p><button class="btn" onclick="showPassage()">Continue</button></div></div>
+<div class="overlay" id="mcq-overlay"><div class="modal"><h2 id="mcq-result-title"></h2><p id="mcq-result-msg"></p><button class="btn" id="mcq-next-btn" onclick="goNext()">Continue</button></div></div>
+<div id="vocab-phase" style="display:none; flex-direction:column; align-items:center; width:100%;">
+<div class="phase-label">Vocabulary Matching</div>
+<div class="progress" id="progress-text">Round 1</div>
+<div class="game-area"><div class="columns"><div class="column" id="left-col"></div><div class="column" id="right-col"></div></div></div>
+<button class="btn" id="check-btn" onclick="checkAnswers()" disabled>Check Answers</button>
+</div>
+<div id="passage-phase" style="display:none; flex-direction:column; align-items:center; width:100%;">
+<div class="phase-label">Reading Passage</div>
+<div class="passage-box" id="passage-text"></div>
+<button class="btn" onclick="showQuestion()">Go to Question</button>
+</div>
+<div id="mcq-phase" style="display:none; flex-direction:column; align-items:center; width:100%;">
+<div class="phase-label">Multiple Choice</div>
+<div class="mcq-box"><div class="mcq-question" id="mcq-question-text"></div><div id="mcq-options"></div></div>
+</div>
+<iframe name="hidden-iframe" style="display:none"></iframe>
+<script>
+var SHEET_URL = "https://script.google.com/macros/s/AKfycbwaRtctDHQiLjKo-HPnOQVXyTHDBKCWiv8pS2K_aqgq277lGOf35TcUXrmUzwMeCok/exec";
+var TEST_NUM = 1;
+var Q_NUM = 1;
+var TOTAL_Q = 50;
+var NEXT_URL = "test1-q2-greg.html";
+var DRAG_LANG = "eng";
+var ROUNDS = [[{"eng":"logical","kor":"논리적인"},{"eng":"obstacle","kor":"장애물"},{"eng":"unexpected","kor":"예상치 못한"},{"eng":"sample","kor":"표본, 시료"}],[{"eng":"bring back","kor":"다시 가져오다"},{"eng":"cover","kor":"덮다"},{"eng":"asteroid","kor":"소행성"},{"eng":"gather","kor":"모으다, 채취하다"}],[{"eng":"report","kor":"보고하다"},{"eng":"mostly","kor":"대부분, 대체로"},{"eng":"phrase","kor":"구절, 어구"},{"eng":"covered in","kor":"~로 뒤덮인"}],[{"eng":"follow","kor":"따라가다, 뒤따르다"},{"eng":"successfully","kor":"성공적으로"},{"eng":"surface","kor":"표면"},{"eng":"attached","kor":"붙어 있는, 부착된"}],[{"eng":"despite","kor":"~에도 불구하고"},{"eng":"choice","kor":"선택지"},{"eng":"replace","kor":"대체하다, 교체하다"},{"eng":"bring back to Earth","kor":"지구로 가져오다"}],[{"eng":"collect","kor":"수집하다, 채취하다"},{"eng":"piece","kor":"조각, 일부"},{"eng":"briefly","kor":"잠시, 짧게"},{"eng":"spacecraft","kor":"우주선"}],[{"eng":"face","kor":"직면하다, 맞닥뜨리다"},{"eng":"scientist","kor":"과학자"},{"eng":"complete","kor":"완성하다, 완결하다"},{"eng":"make contact with","kor":"~와 접촉하다"}],[{"eng":"text","kor":"글, 지문"},{"eng":"precise","kor":"정확한, 정밀한"},{"eng":"boulder","kor":"큰 바위, 암석"}]];
+var PASSAGE = "The spacecraft OSIRIS-REx briefly made contact with the asteroid 101955 Bennu in 2020. NASA scientist Daniella DellaGiustina reports that despite facing the unexpected obstacle of a surface mostly covered in boulders, OSIRIS-REx successfully _____________________ a sample of the surface, gathering pieces of it to bring back to Earth.";
+var QUESTION = "Which choice completes the text with the most logical and precise word or phrase?";
+var ANSWERS = ["attached","collected","followed","replaced"];
+var CORRECT = "B";
+var LETTERS = ["A","B","C","D","E","F"];
+var userName = "", currentRound = 0, filledDrops = {}, dragSrc = null;
+var touchDragEl = null, touchClone = null, touchOffsetX = 0, touchOffsetY = 0;
+function startGame() {
+  var input = document.getElementById("name-input").value.trim();
+  if (!input) { alert("Please enter your name."); return; }
+  userName = input;
+  document.getElementById("name-overlay").classList.remove("show");
+  document.getElementById("vocab-phase").style.display = "flex";
+  loadRound(0);
+}
+document.addEventListener("DOMContentLoaded", function() {
+  var inp = document.getElementById("name-input");
+  if (inp) inp.addEventListener("keydown", function(e) { if (e.key === "Enter") startGame(); });
+});
+function loadRound(idx) {
+  currentRound = idx; filledDrops = {};
+  document.getElementById("progress-text").textContent = "Round " + (idx+1) + " of " + ROUNDS.length;
+  document.getElementById("check-btn").disabled = true;
+  var round = ROUNDS[idx];
+  var dragItems = round.map(function(p) { return DRAG_LANG === "eng" ? p.eng : p.kor; });
+  var dropItems = round.map(function(p) { return DRAG_LANG === "eng" ? p.kor : p.eng; });
+  var shuffledDrag = dragItems.slice().sort(function() { return Math.random()-0.5; });
+  var shuffledDrop = dropItems.slice().sort(function() { return Math.random()-0.5; });
+  var leftCol = document.getElementById("left-col"), rightCol = document.getElementById("right-col");
+  leftCol.innerHTML = ""; rightCol.innerHTML = "";
+  shuffledDrag.forEach(function(word) {
+    var card = document.createElement("div");
+    card.className = "word-card"; card.textContent = word; card.dataset.word = word;
+    addDragTouch(card); leftCol.appendChild(card);
+  });
+  shuffledDrop.forEach(function(word) {
+    var dz = document.createElement("div");
+    dz.className = "drop-zone"; dz.dataset.word = word; dz.textContent = word;
+    dz.addEventListener("dragover", function(e) { e.preventDefault(); dz.classList.add("over"); });
+    dz.addEventListener("dragleave", function() { dz.classList.remove("over"); });
+    dz.addEventListener("drop", function(e) { e.preventDefault(); dz.classList.remove("over"); if (dragSrc) performDrop(dragSrc, dz); dragSrc = null; });
+    rightCol.appendChild(dz);
+  });
+}
+function addDragTouch(card) {
+  card.draggable = true;
+  card.addEventListener("dragstart", function(e) { dragSrc = card; card.classList.add("dragging"); e.dataTransfer.effectAllowed = "move"; });
+  card.addEventListener("dragend", function() { card.classList.remove("dragging"); });
+  card.addEventListener("touchstart", onTouchStart, {passive:false});
+  card.addEventListener("touchmove", onTouchMove, {passive:false});
+  card.addEventListener("touchend", onTouchEnd, {passive:false});
+}
+function onTouchStart(e) {
+  e.preventDefault(); touchDragEl = e.currentTarget;
+  var touch = e.touches[0], rect = touchDragEl.getBoundingClientRect();
+  touchOffsetX = touch.clientX - rect.left; touchOffsetY = touch.clientY - rect.top;
+  touchClone = touchDragEl.cloneNode(true);
+  touchClone.style.cssText = "position:fixed;width:" + rect.width + "px;opacity:0.8;z-index:9999;pointer-events:none;left:" + (touch.clientX-touchOffsetX) + "px;top:" + (touch.clientY-touchOffsetY) + "px;";
+  document.body.appendChild(touchClone); touchDragEl.style.opacity = "0.3";
+}
+function onTouchMove(e) {
+  e.preventDefault(); if (!touchClone) return;
+  var touch = e.touches[0];
+  touchClone.style.left = (touch.clientX-touchOffsetX) + "px";
+  touchClone.style.top = (touch.clientY-touchOffsetY) + "px";
+  document.querySelectorAll(".drop-zone").forEach(function(dz) { dz.classList.remove("over"); });
+  touchClone.style.display = "none";
+  var el = document.elementFromPoint(touch.clientX, touch.clientY);
+  touchClone.style.display = "";
+  var dz = el ? el.closest(".drop-zone") : null;
+  if (dz) dz.classList.add("over");
+}
+function onTouchEnd(e) {
+  e.preventDefault(); if (!touchClone || !touchDragEl) return;
+  var touch = e.changedTouches[0];
+  document.querySelectorAll(".drop-zone").forEach(function(dz) { dz.classList.remove("over"); });
+  touchClone.style.display = "none";
+  var el = document.elementFromPoint(touch.clientX, touch.clientY);
+  touchClone.style.display = "";
+  var dz = el ? el.closest(".drop-zone") : null;
+  document.body.removeChild(touchClone); touchClone = null;
+  if (dz) performDrop(touchDragEl, dz); else touchDragEl.style.opacity = "1";
+  touchDragEl = null;
+}
+function performDrop(card, dz) {
+  var dragWord = card.dataset.word, dropWord = dz.dataset.word;
+  if (filledDrops[dropWord]) returnToBank(filledDrops[dropWord]);
+  var prevDrop = card.dataset.currentDz;
+  if (prevDrop && prevDrop !== dropWord) {
+    delete filledDrops[prevDrop];
+    document.querySelectorAll(".drop-zone").forEach(function(z) { if (z.dataset.word === prevDrop) { z.classList.remove("filled"); z.textContent = prevDrop; } });
+  }
+  filledDrops[dropWord] = dragWord; card.dataset.currentDz = dropWord;
+  card.style.display = "none"; dz.classList.add("filled");
+  dz.textContent = dropWord + " <- " + dragWord;
+  checkAllFilled();
+}
+function returnToBank(dragWord) {
+  document.getElementById("left-col").querySelectorAll(".word-card").forEach(function(card) {
+    if (card.dataset.word === dragWord) { card.style.display = "flex"; card.style.opacity = "1"; card.dataset.currentDz = ""; }
+  });
+}
+function checkAllFilled() {
+  document.getElementById("check-btn").disabled = Object.keys(filledDrops).length < document.querySelectorAll(".drop-zone").length;
+}
+function checkAnswers() {
+  var round = ROUNDS[currentRound], correctMap = {};
+  round.forEach(function(p) {
+    var dropWord = DRAG_LANG === "eng" ? p.kor : p.eng;
+    var dragWord = DRAG_LANG === "eng" ? p.eng : p.kor;
+    correctMap[dropWord] = dragWord;
+  });
+  var allCorrect = true;
+  document.querySelectorAll(".drop-zone").forEach(function(dz) {
+    var drop = dz.dataset.word, drag = filledDrops[drop];
+    if (drag === correctMap[drop]) {
+      dz.classList.add("correct");
+      document.querySelectorAll(".word-card").forEach(function(c) { if (c.dataset.word === drag) c.classList.add("correct"); });
+    } else { dz.classList.add("incorrect"); allCorrect = false; }
+  });
+  if (allCorrect) {
+    if (currentRound + 1 >= ROUNDS.length) {
+      sendVocabResult();
+      setTimeout(function() { document.getElementById("vocab-done-overlay").classList.add("show"); }, 600);
+    } else {
+      setTimeout(function() {
+        document.getElementById("round-msg").textContent = "Round " + (currentRound+1) + " done! On to round " + (currentRound+2) + ".";
+        document.getElementById("round-overlay").classList.add("show");
+      }, 600);
+    }
+  } else { setTimeout(function() { document.getElementById("penalty-overlay").classList.add("show"); }, 600); }
+}
+function nextRound() { document.getElementById("round-overlay").classList.remove("show"); loadRound(currentRound+1); }
+function dismissPenalty() { document.getElementById("penalty-overlay").classList.remove("show"); loadRound(Math.max(0, currentRound-1)); }
+function showPassage() {
+  document.getElementById("vocab-done-overlay").classList.remove("show");
+  document.getElementById("vocab-phase").style.display = "none";
+  document.getElementById("passage-phase").style.display = "flex";
+  document.getElementById("passage-text").textContent = PASSAGE;
+}
+function showQuestion() {
+  document.getElementById("passage-phase").style.display = "none";
+  document.getElementById("mcq-phase").style.display = "flex";
+  document.getElementById("mcq-question-text").textContent = QUESTION;
+  var optDiv = document.getElementById("mcq-options"); optDiv.innerHTML = "";
+  ANSWERS.forEach(function(ans, i) {
+    var div = document.createElement("div");
+    div.className = "mcq-option"; div.textContent = LETTERS[i] + ") " + ans;
+    div.dataset.letter = LETTERS[i];
+    div.addEventListener("click", function() { selectAnswer(div); });
+    optDiv.appendChild(div);
+  });
+}
+function selectAnswer(div) {
+  document.querySelectorAll(".mcq-option").forEach(function(o) { o.style.pointerEvents = "none"; });
+  setTimeout(function() { submitAnswer(div.dataset.letter); }, 300);
+}
+function submitAnswer(chosen) {
+  var isCorrect = chosen === CORRECT;
+  document.querySelectorAll(".mcq-option").forEach(function(o) {
+    if (o.dataset.letter === CORRECT) o.classList.add("correct");
+    else if (o.dataset.letter === chosen && !isCorrect) o.classList.add("incorrect");
+  });
+  sendMCQResult(chosen, isCorrect);
+  document.getElementById("mcq-result-title").textContent = isCorrect ? "Correct!" : "Not quite";
+  document.getElementById("mcq-result-msg").textContent = isCorrect ? "Well done! Moving to the next question." : "The correct answer was " + CORRECT + ". Keep going!";
+  document.getElementById("mcq-next-btn").textContent = NEXT_URL ? "Next Question" : "Test Complete!";
+  setTimeout(function() { document.getElementById("mcq-overlay").classList.add("show"); }, 800);
+}
+function goNext() { if (NEXT_URL) window.location.href = NEXT_URL; else alert("You have completed this test! Well done!"); }
+function sendVocabResult() { sendResult({user:userName, test:"Test"+TEST_NUM, question:"Q"+Q_NUM, type:"vocab", result:"complete", answer:""}); }
+function sendMCQResult(chosen, isCorrect) { sendResult({user:userName, test:"Test"+TEST_NUM, question:"Q"+Q_NUM, type:"mcq", result:isCorrect?"correct":"incorrect", answer:chosen}); }
+function sendResult(data) {
+  var now = new Date();
+  data.date = now.toLocaleDateString(); data.time = now.toLocaleTimeString();
+  var payload = JSON.stringify(data);
+  var form = document.createElement("form");
+  form.method = "POST"; form.action = SHEET_URL; form.target = "hidden-iframe";
+  var inp = document.createElement("input");
+  inp.type = "hidden"; inp.name = "data"; inp.value = payload;
+  form.appendChild(inp); document.body.appendChild(form); form.submit(); document.body.removeChild(form);
+}
+</script>
+</body>
+</html>
